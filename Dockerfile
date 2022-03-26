@@ -1,15 +1,30 @@
-FROM buildpack-deps:stretch
+FROM static-ffmpeg
 
-LABEL maintainer="Sebastian Ramirez <tiangolo@gmail.com>"
+FROM alpine
+
+LABEL maintainer="Yongsheng Zhu <aone75@gmail.com>"
 
 # Versions of Nginx and nginx-rtmp-module to use
-ENV NGINX_VERSION nginx-1.18.0
-ENV NGINX_RTMP_MODULE_VERSION 1.2.1
+ENV NGINX_VERSION nginx-1.21.6
+ENV NGINX_RTMP_MODULE_VERSION 1.2.2
+# Common dependencies
+ENV DEPS_COMMON="bash nano lua"
+# Common build tools
+ENV DEPS_BUILD_TOOLS="git perl unzip gcc binutils build-base libgcc make pkgconf pkgconfig openssl openssl-dev ca-certificates pcre nasm yasm yasm-dev coreutils musl-dev libc-dev pcre-dev zlib-dev lua-dev"
 
-# Install dependencies
-RUN apt-get update && \
-    apt-get install -y ca-certificates openssl libssl-dev && \
-    rm -rf /var/lib/apt/lists/*
+# Use tuna mirror
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories
+
+# Updating certificates
+RUN apk update \
+  && apk add openssl ca-certificates \
+  && update-ca-certificates
+
+# Installing common dependencies
+RUN apk update && apk add --virtual .common-dependencies ${DEPS_COMMON}
+
+# Installing build dependencies
+RUN	apk update && apk add --virtual .build-dependencies	${DEPS_BUILD_TOOLS}
 
 # Download and decompress Nginx
 RUN mkdir -p /tmp/build/nginx && \
@@ -20,7 +35,7 @@ RUN mkdir -p /tmp/build/nginx && \
 # Download and decompress RTMP module
 RUN mkdir -p /tmp/build/nginx-rtmp-module && \
     cd /tmp/build/nginx-rtmp-module && \
-    wget -O nginx-rtmp-module-${NGINX_RTMP_MODULE_VERSION}.tar.gz https://github.com/arut/nginx-rtmp-module/archive/v${NGINX_RTMP_MODULE_VERSION}.tar.gz && \
+    wget -O nginx-rtmp-module-${NGINX_RTMP_MODULE_VERSION}.tar.gz https://github.com/arut/nginx-rtmp-module/archive/refs/tags/v${NGINX_RTMP_MODULE_VERSION}.tar.gz && \
     tar -zxf nginx-rtmp-module-${NGINX_RTMP_MODULE_VERSION}.tar.gz && \
     cd nginx-rtmp-module-${NGINX_RTMP_MODULE_VERSION}
 
